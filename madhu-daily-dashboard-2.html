@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
+<title>Madhu — Daily Dashboard</title>
+<style>
+  /* Force light only regardless of system setting */
+  :root { color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root { color-scheme: light; }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.3px;
+  }
+
+  .date-display {
+    font-size: 13px;
+    color: #888;
+    font-weight: 400;
+  }
+
+  .day-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 16px 0 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .day-tab {
+    padding: 8px 16px;
+    border-radius: 22px;
+    font-size: 13px;
+    background: #f5f5f5;
+    color: #555;
+    cursor: pointer;
+    border: none;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .day-tab:hover { background: #ececec; }
+  .day-tab.active {
+    background: #1a1a1a;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .activity-drag {
+    background: transparent;
+    border: none;
+    color: rgba(0,0,0,0.18);
+    font-size: 11px;
+    cursor: grab;
+    padding: 0 4px;
+    font-family: inherit;
+    line-height: 1;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    flex-shrink: 0;
+    margin-top: 4px;
+    align-self: flex-start;
+  }
+  .activity-drag:hover { color: rgba(0,0,0,0.45); }
+  .activity-drag:active { cursor: grabbing; }
+  .activity-row.act-dragging { opacity: 0.4; }
+  .activity-row.act-drag-over-top { box-shadow: 0 -2px 0 #888; }
+  .activity-row.act-drag-over-bottom { box-shadow: 0 2px 0 #888; }
+
+  .todo-rollover {
+    background: transparent;
+    border: none;
+    color: #c4b0b0;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    opacity: 0.55;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .todo-rollover:hover {
+    opacity: 1;
+    color: #8a6a6a;
+    background: rgba(0,0,0,0.04);
+  }
+
+  .block {
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    position: relative;
+    transition: opacity 0.15s;
+  }
+
+  .block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .block-titles {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .block-time, .block-title {
+    font-weight: 700;
+    font-size: 14px;
+    background: transparent;
+    border: none;
+    width: 100%;
+    font-family: inherit;
+    color: #1a1a1a;
+    outline: none;
+    padding: 2px 0;
+    line-height: 1.3;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    min-height: 1.3em;
+  }
+  .block-time:empty:before, .block-title:empty:before {
+    content: attr(data-placeholder);
+    color: #bbb;
+  }
+  .block-time:focus, .block-title:focus {
+    background: rgba(255,255,255,0.7);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .block-time { margin-bottom: 2px; }
+
+  .block-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .color-picker-wrap {
+    position: relative;
+  }
+
+  .color-current {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.15);
+    cursor: pointer;
+  }
+
+  .color-palette {
+    position: absolute;
+    right: 0;
+    top: 24px;
+    background: #fff;
+    border: 0.5px solid #ddd;
+    border-radius: 10px;
+    padding: 8px;
+    display: none;
+    grid-template-columns: repeat(5, 18px);
+    gap: 6px;
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .color-palette.open { display: grid; }
+  .color-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.1);
+    cursor: pointer;
+  }
+
+  .drag-handle, .delete-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px 6px;
+    color: #888;
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1;
+    border-radius: 4px;
+  }
+  .drag-handle:hover, .delete-btn:hover { background: rgba(0,0,0,0.05); color: #333; }
+  .drag-handle { cursor: grab; touch-action: none; }
+  .drag-handle:active { cursor: grabbing; }
+
+  .activities {
+    font-size: 14px;
+    line-height: 1.9;
+  }
+
+  .activity-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 1px 0;
+  }
+  .activity-row input[type="checkbox"] {
+    margin-top: 5px;
+    flex-shrink: 0;
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+    accent-color: #555;
+  }
+  .activity-text {
+    flex: 1;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    color: #1a1a1a;
+    outline: none;
+    padding: 1px 4px;
+    border-radius: 3px;
+    line-height: 1.5;
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    min-height: 1.5em;
+  }
+  .activity-text:empty:before {
+    content: attr(data-placeholder);
+    color: #bbb;
+  }
+  .activity-text:focus { background: rgba(255,255,255,0.7); }
+  .activity-row.done .activity-text {
+    text-decoration: line-through;
+    color: #999;
+  }
+  .remove-activity {
+    background: transparent;
+    border: none;
+    color: #bbb;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    font-family: inherit;
+  }
+  .activity-row:hover .remove-activity { opacity: 1; }
+
+  .add-activity {
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+    padding: 4px 0 0 22px;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+  }
+  .add-activity:hover { color: #333; }
+
+  /* Options section */
+  .options-wrap {
+    display: grid;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .options-wrap.two { grid-template-columns: 1fr 1fr; }
+  .options-wrap.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  @media (max-width: 600px) {
+    .options-wrap.two, .options-wrap.three {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .option-card {
+    background: #FAFAFA;
+    border: 0.5px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: opacity 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  /* Meds sub-sections — visually like option cards, but independent (no mutual exclusion) */
+  .sections-wrap {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .med-section {
+    background: #FAFAFA;
+    border: 0.5px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .med-section-title {
+    font-weight: 700;
+    font-size: 13px;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    color: #1a1a1a;
+    outline: none;
+    padding: 2px 4px 6px;
+    border-radius: 3px;
+    width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.4;
+    display: block;
+  }
+  .med-section-title:empty:before {
+    content: attr(data-placeholder);
+    color: #bbb;
+  }
+  .med-section-title:focus { background: rgba(0,0,0,0.04); }
+
+  .med-items { font-size: 13px; line-height: 1.7; }
+  .med-items .activity-row { padding: 1px 0; }
+  .med-items .activity-text { font-size: 13px; }
+
+  .note-line {
+    font-size: 12px;
+    font-style: italic;
+    color: #999;
+    padding: 2px 4px 2px 26px;
+    line-height: 1.4;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    display: block;
+  }
+  .note-line:empty:before {
+    content: attr(data-placeholder);
+    color: #ccc;
+  }
+  .note-line:focus { background: rgba(0,0,0,0.03); border-radius: 3px; }
+
+  .option-card.deselected {
+    opacity: 0.5;
+  }
+  .option-card.deselected .option-title,
+  .option-card.deselected .option-activities .activity-text {
+    text-decoration: line-through;
+    color: #999;
+  }
+  .option-card.selected {
+    background: #FFFFFF;
+    border-color: #999;
+  }
+
+  .option-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .option-header input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #555;
+  }
+  .option-title {
+    font-weight: 700;
+    font-size: 13px;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    color: #1a1a1a;
+    outline: none;
+    flex: 1;
+    padding: 2px 4px;
+    border-radius: 3px;
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.4;
+  }
+  .option-title:empty:before {
+    content: attr(data-placeholder);
+    color: #bbb;
+  }
+  .option-title:focus { background: rgba(0,0,0,0.04); }
+
+  .option-activities {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .option-activities .activity-row { padding: 0; }
+  .option-activities .activity-text { font-size: 13px; }
+
+  .add-block-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 12px;
+    border: 1px dashed #ccc;
+    border-radius: 10px;
+    background: transparent;
+    color: #888;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    margin: 8px 0 24px;
+  }
+  .add-block-btn:hover { background: #fafafa; color: #555; }
+
+  /* To Do section */
+  .todo-section {
+    border-top: 0.5px solid #eee;
+    padding-top: 20px;
+    margin-top: 8px;
+  }
+  .todo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .todo-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .todo-list .activity-row { padding: 3px 0; }
+  .carried-tag {
+    display: inline-block;
+    font-size: 10px;
+    color: #b08585;
+    background: #fde8e8;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-right: 6px;
+    font-weight: 500;
+  }
+
+  .add-todo {
+    margin-top: 6px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .add-todo input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 0.5px solid #e0e0e0;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 6px 0;
+    outline: none;
+    color: #1a1a1a;
+  }
+  .add-todo input:focus { border-bottom-color: #888; }
+
+  .empty-todo {
+    color: #aaa;
+    font-size: 13px;
+    font-style: italic;
+    padding: 4px 0;
+  }
+
+  /* Drag visual */
+  .block.dragging { opacity: 0.4; }
+  .block.drag-over-top { box-shadow: 0 -2px 0 #555; }
+  .block.drag-over-bottom { box-shadow: 0 2px 0 #555; }
+
+  /* Reset button */
+  .footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 0.5px solid #f0f0f0;
+    text-align: center;
+  }
+  .reset-btn {
+    font-size: 11px;
+    color: #bbb;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .reset-btn:hover { color: #888; }
+
+  /* Mobile tweaks */
+  @media (max-width: 480px) {
+    .app { padding: 14px 12px 80px; }
+    .header h1 { font-size: 19px; }
+    .block { padding: 12px 14px; }
+    .block-time, .block-title { font-size: 13px; }
+    .activities, .activity-text { font-size: 13.5px; }
+    .day-tab { padding: 7px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1>Madhu — Daily Dashboard</h1>
+    <div class="date-display" id="dateDisplay"></div>
+  </div>
+
+  <div class="day-tabs" id="dayTabs"></div>
+
+  <div id="blocksContainer"></div>
+
+  <button class="add-block-btn" id="addBlockBtn">+ Add time block</button>
+
+  <div class="todo-section">
+    <div class="todo-header">
+      <h2>To Do</h2>
+    </div>
+    <div class="todo-list" id="todoList"></div>
+    <div class="add-todo">
+      <input type="text" id="newTodoInput" placeholder="Add a task..." autocomplete="off">
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="reset-btn" id="resetBtn">Reset day to template</button>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// PASTEL PALETTE (10 options)
+// ============================================================
+const PASTELS = [
+  { name: 'pink',     hex: '#FFE0E5' },
+  { name: 'peach',    hex: '#FFE5D0' },
+  { name: 'lemon',    hex: '#FFF7C2' },
+  { name: 'mint',     hex: '#D6F0DC' },
+  { name: 'sky',      hex: '#D6EBFA' },
+  { name: 'lavender', hex: '#E5DEF7' },
+  { name: 'blush',    hex: '#FAD9E6' },
+  { name: 'sand',     hex: '#F0E4CD' },
+  { name: 'sage',     hex: '#E0EAD7' },
+  { name: 'grey',     hex: '#F0F0F0' }
+];
+
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAY_FULL = {
+  Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday',
+  Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday'
+};
+
+// ============================================================
+// SCHEDULE TEMPLATES — initial content per day
+// ============================================================
+function uid() { return Math.random().toString(36).slice(2,9); }
+
+// Build a section ("meds sub-box"). Items are either:
+//   - a string  => checkbox item with that text
+//   - { note: '...' }  => grey italic line with no checkbox
+function sec(title, items) {
+  return {
+    id: uid(),
+    title,
+    items: items.map(it => {
+      if (typeof it === 'string') return { id: uid(), kind: 'item', text: it, done: false };
+      if (it && it.note !== undefined) return { id: uid(), kind: 'note', text: it.note };
+      return { id: uid(), kind: 'item', text: String(it), done: false };
+    })
+  };
+}
+
+function mk(time, title, activities, color = 'pink', options = null, sections = null) {
+  return {
+    id: uid(), time, title, color,
+    activities: activities ? activities.map(a => ({ id: uid(), text: a, done: false })) : [],
+    options: options ? options.map(o => ({
+      id: uid(),
+      title: o.title,
+      selected: o.selected || false,
+      activities: o.activities.map(a => ({ id: uid(), text: a, done: false }))
+    })) : null,
+    sections: sections || null
+  };
+}
+
+// Reusable Bens meds sections (used across Mon–Fri morning, lunch, evening)
+
+const ROTATE_NOTE = { note: '(Rotate the Anti-mould and Anti-Mycoplasma lotions each day)' };
+const WILD_YAM_NOTE = { note: '(half tspn on inner upper arm or leg, start using at end of next period for 3 weeks then take 1 week off)' };
+
+function morningLotionsSection() {
+  return sec('Morning Lotions', [
+    'Trace Mineral lotion (Morning)',
+    'Anti-Mould lotion',
+    'Anti-Mycoplasma lotion',
+    ROTATE_NOTE,
+    "Anna's wild yam cream AM",
+    WILD_YAM_NOTE
+  ]);
+}
+
+function beforeBreakfastMedsSection() {
+  return sec('Before breakfast/gym meds', [
+    "Dean's flora probiotic (half tspn in separate water)",
+    'Quenda ultimate fibre (1 scoop blended w. water)',
+    "Dean's bio+ b12 (2 droppers)"
+  ]);
+}
+
+function medsWithMealSection(mealLabel) {
+  // mealLabel like "B/fast in waterbottle" or "Lunch in waterbottle" or "Lunch"
+  return sec(`Bens Meds with ${mealLabel}`, [
+    "Dean's Vit C powder (half tspn)",
+    'Ionic Magnesium citrate (1 tspn)',
+    "Dean's super B complex (1 tspn — on full stomach)"
+  ]);
+}
+
+function eveningLotionsSection() {
+  return sec('Evening Lotions', [
+    'Anti-Mould lotion',
+    'Anti-Mycoplasma lotion',
+    ROTATE_NOTE,
+    "Anna's wild yam cream PM",
+    WILD_YAM_NOTE,
+    'Copper lotion (night)'
+  ]);
+}
+
+function eveningMedsFastingSection() {
+  return sec('Evening meds (fasting)', [
+    "Dean's flora probiotic (half tspn in separate water)",
+    'Masterpeace (5 drops under tongue)',
+    'Activated charcoal powder (1/4 tspn)',
+    "Dean's Bio+ b12 (2 full droppers)",
+    "Dean's Vit C powder (half tspn)",
+    'Ionic Magnesium citrate (1 tspn)'
+  ]);
+}
+
+// Weekday morning (Mon–Fri share this) — reused
+function weekdayMorningBlocks() {
+  return [
+    mk('5:30am', 'Wake & morning sadhana', [
+      'Prayer of obeisance to Guru',
+      'Make bed',
+      "Listen to 'Vessel' practice audio (8 mins) & breathe",
+      "Listen to 'Madhu' audio",
+      'Fill up water bottle',
+      'Shower & change into comfy walking / exc clothes',
+      'Wake up deities (no bath, only pull curtain back)',
+      'Chant 1 round "Aum bhur namo bhagavate varahaya" in front of deities'
+    ], 'pink', null, [
+      morningLotionsSection(),
+      beforeBreakfastMedsSection()
+    ]),
+
+    mk('6:30 – 8:00am', 'Movement', null, 'mint', [
+      { title: 'Option', selected: false, activities: [
+        '6:30–6:40am: drive to Brunswick main beach / park car',
+        '6:45–7:45am: walk / chant japa / Gayatri',
+        'Sit & do 1 round "om hum hanumate namaha"',
+        'Be back home by 8am'
+      ]},
+      { title: 'Option', selected: false, activities: [
+        '6:30–6:40am: drive to Brunswick gym',
+        '6:45–7:30am: gym workout',
+        'Sit outside or in sauna — 1 round "om hum hanumate namaha" / Gayatri',
+        'Be back home by 8am'
+      ]}
+    ]),
+
+    mk('8:00 – 8:30am', 'Self-care & ready', [
+      'Shower',
+      'Dex la · oil face & hair · check weight',
+      'Get changed',
+      'Protein shake or porridge',
+      'Listen to audio (RR or KC) while doing it'
+    ], 'peach', null, [
+      medsWithMealSection('B/fast in waterbottle')
+    ]),
+
+    mk('8:30 – 10:00am', 'Japa & Giri seva', null, 'lavender', [
+      { title: 'Option', selected: false, activities: [
+        '8:30–9am: bathe & dress Giri (Nrsimha Kavacha Stotra)',
+        '9–10am: zoom japa (1 hour chanting)'
+      ]},
+      { title: 'Option', selected: false, activities: [
+        '8:30–9:30am: zoom japa (1 hour chanting)',
+        '9:30–10am: bathe & dress Giri (Nrsimha Kavacha Stotra)'
+      ]},
+      { title: 'Option', selected: false, activities: [
+        '8:30–9am: bathe & dress Giri (Nrsimha Kavacha Stotra)',
+        '9–10am: 1 hour solo chanting in front of deities'
+      ]}
+    ])
+    // Note: 10–11am "Plan day & quick to-dos" removed; Work block 1 now starts at 10am
+  ];
+}
+
+function monThuTemplate() {
+  return [
+    ...weekdayMorningBlocks(),
+    mk('10:00am – 1:00pm', 'Work block 1 (3hr)', ['Deep work session — first focus block'], 'sky'),
+    mk('1:00 – 2:00pm', 'Break', ['Food', 'Gayatri', 'Zone out'], 'sand', null, [
+      medsWithMealSection('Lunch in waterbottle')
+    ]),
+    mk('2:00 – 4:00pm', 'Work block 2 (2hr)', ['Deep work session — second focus block'], 'sky'),
+    mk('4:00 – 4:30pm', 'Break', ['Rest / snack / reset'], 'sand'),
+    mk('4:30 – 6:00pm', 'Work block 3', ['Deep work session — third focus block'], 'sky'),
+    mk('6:00pm onwards', 'Evening wind-down', [
+      'Magnesium bath',
+      'Chant Gayatri',
+      'Put deities to rest',
+      'Breathwork with Sandy (20 min) OR longer RR practice (40 min)',
+      'Zone out',
+      'Bed by 9pm (ideal) 10pm (latest)'
+    ], 'blush', null, [
+      eveningLotionsSection(),
+      eveningMedsFastingSection()
+    ])
+  ];
+}
+
+function fridayTemplate() {
+  return [
+    ...weekdayMorningBlocks(),
+    mk('10:00am – 1:00pm', 'Work block (3hr)', ['Deep work session'], 'sky'),
+    mk('1:00 – 2:00pm', 'Break', [
+      'Food',
+      'Gayatri',
+      'Zone out',
+      'Put Giriraj and deities to rest',
+      "Pack prep'd PM / AM meds & lotions for farm overnight stay"
+    ], 'sand', null, [
+      medsWithMealSection('Lunch in waterbottle')
+    ]),
+    mk('2:00 – 2:30pm', "Travel to get Dad's car", ["Drive to Dad's"], 'sage'),
+    mk('2:30 – 3:30pm', 'Travel to Murwillumbah', ['Drive / settle'], 'sage'),
+    mk('3:30 – 4:30pm', 'Kirtan time', null, 'lavender', [
+      { title: 'Option', selected: false, activities: ['Narahari kirtan lesson — harmonium'] },
+      { title: 'Option', selected: false, activities: ['Jam with sadhu seva until 5:30pm'] },
+      { title: 'Option', selected: false, activities: ['Give a kirtan lesson to someone else'] }
+    ]),
+    mk('4:30 / 5:30pm onwards', 'Murwillumbah evening', [
+      'Murwillumbah gym',
+      'Coles run',
+      'Evening turban-making at temple',
+      'Gayatri',
+      'Giriraj rest',
+      'RR audio',
+      'Shower',
+      'Bed by 9:30pm (ideal) 10pm (latest)'
+    ], 'blush', null, [
+      eveningLotionsSection(),
+      eveningMedsFastingSection()
+    ])
+  ];
+}
+
+function saturdayTemplate() {
+  return [
+    mk('3:30am', 'Wake & prepare', ['Wake at 3:30am','Shower, dress, etc.'], 'pink'),
+    mk('4:00 – 7:00am', 'Giriraj temple seva', ['Be at temple by 4am','Temple seva until 7am'], 'lavender'),
+    mk('7:15 – 9:00am', 'Gym with Dhama', ['Gym session with Dhama'], 'mint'),
+    mk('9:00 – 10:00am', 'Back at farm', [
+      'Pack up room',
+      'Clean',
+      'Shower + Lotions',
+      "Dean's flora probiotic (half tspn)",
+      "Dean's bio+ b12 (2 full droppers)"
+    ], 'peach'),
+    mk('10:00 – 11:00am', 'Mid-morning', [
+      'GF organic pie',
+      "Drink pre-prep'd AM Ben's Meds with b/fast (Vit C half tspn, Mag 1 tspn, Sup B complex 1 tspn)"
+    ], 'sand'),
+    mk('11:00am onwards', 'Free — socialising & creative experimentation', [
+      'Open for friends, family, creative work',
+      'Suno / Ableton experimentation'
+    ], 'sky', null, [
+      medsWithMealSection('Lunch')
+    ]),
+    mk('Evening', 'Evening', null, 'blush', null, [
+      sec('Lotions', [
+        'Anti-Mould lotion',
+        'Anti-Mycoplasma lotion',
+        ROTATE_NOTE,
+        "Anna's wild yam cream PM",
+        WILD_YAM_NOTE,
+        'Copper lotion (night)'
+      ]),
+      eveningMedsFastingSection()
+    ])
+  ];
+}
+
+function sundayTemplate() {
+  return [
+    mk('All day', 'Free — socialising & creative experimentation', [
+      'Completely open day',
+      'Rest, friends, family',
+      'Creative experimentation if it feels alive'
+    ], 'sage'),
+    mk('AM', 'AM Lotions', null, 'pink', null, [
+      sec('Lotions', [
+        'Trace Mineral lotion (Morning)',
+        'Anti-Mould lotion',
+        'Anti-Mycoplasma lotion',
+        ROTATE_NOTE,
+        "Anna's wild yam cream AM",
+        WILD_YAM_NOTE
+      ])
+    ]),
+    mk('30 min before b/fast', 'AM Meds before b/fast', null, 'lemon', null, [
+      sec('Before b/fast meds', [
+        "Dean's flora probiotic (half tspn in separate water)",
+        'Quenda ultimate fibre (1 scoop blended w. water)',
+        "Dean's bio+ b12 (2 droppers)"
+      ])
+    ]),
+    mk('With b/fast', 'AM Meds with B/fast', null, 'peach', null, [
+      medsWithMealSection('B/fast')
+    ]),
+    mk('With lunch', 'Meds with Lunch', null, 'sand', null, [
+      medsWithMealSection('Lunch')
+    ]),
+    mk('Evening', 'Evening', null, 'blush', null, [
+      sec('Lotions', [
+        'Anti-Mould lotion',
+        'Anti-Mycoplasma lotion',
+        ROTATE_NOTE,
+        "Anna's wild yam cream PM",
+        WILD_YAM_NOTE,
+        'Copper lotion (night)'
+      ]),
+      eveningMedsFastingSection()
+    ])
+  ];
+}
+
+const TEMPLATES = {
+  Mon: monThuTemplate,
+  Tue: monThuTemplate,
+  Wed: monThuTemplate,
+  Thu: monThuTemplate,
+  Fri: fridayTemplate,
+  Sat: saturdayTemplate,
+  Sun: sundayTemplate
+};
+
+// ============================================================
+// STATE & STORAGE
+// ============================================================
+const STORAGE_KEY = 'madhu_dashboard_v2';
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    return JSON.parse(raw);
+  } catch(e) {
+    return defaultState();
+  }
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function defaultState() {
+  const s = { days: {}, currentDay: todayKey() };
+  DAYS.forEach(d => {
+    s.days[d] = { blocks: TEMPLATES[d](), todos: [] };
+  });
+  return s;
+}
+
+function todayKey() {
+  const idx = (new Date().getDay() + 6) % 7; // Mon = 0
+  return DAYS[idx];
+}
+
+function nextDayKey(d) {
+  const i = DAYS.indexOf(d);
+  return DAYS[(i + 1) % 7];
+}
+
+let state = loadState();
+
+// ============================================================
+// RENDER
+// ============================================================
+function getColorHex(name) {
+  const p = PASTELS.find(p => p.name === name);
+  return p ? p.hex : PASTELS[0].hex;
+}
+
+function render() {
+  renderHeader();
+  renderTabs();
+  renderBlocks();
+  renderTodos();
+}
+
+function renderHeader() {
+  const d = new Date();
+  const opts = { weekday: 'long', day: 'numeric', month: 'long' };
+  document.getElementById('dateDisplay').textContent = d.toLocaleDateString('en-AU', opts);
+}
+
+function renderTabs() {
+  const wrap = document.getElementById('dayTabs');
+  wrap.innerHTML = '';
+  DAYS.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'day-tab' + (d === state.currentDay ? ' active' : '');
+    b.textContent = DAY_FULL[d];
+    b.onclick = () => { state.currentDay = d; saveState(); render(); };
+    wrap.appendChild(b);
+  });
+}
+
+function renderBlocks() {
+  const wrap = document.getElementById('blocksContainer');
+  wrap.innerHTML = '';
+  const day = state.days[state.currentDay];
+
+  day.blocks.forEach((block, idx) => {
+    wrap.appendChild(renderBlock(block, idx));
+  });
+}
+
+function renderBlock(block, idx) {
+  const el = document.createElement('div');
+  el.className = 'block';
+  el.style.background = getColorHex(block.color);
+  el.dataset.idx = idx;
+  el.draggable = false;
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'block-header';
+
+  const titles = document.createElement('div');
+  titles.className = 'block-titles';
+
+  const timeInput = document.createElement('div');
+  timeInput.className = 'block-time';
+  timeInput.contentEditable = 'true';
+  timeInput.setAttribute('data-placeholder', 'Time');
+  timeInput.textContent = block.time;
+  timeInput.oninput = e => { block.time = e.target.textContent; saveState(); };
+
+  const titleInput = document.createElement('div');
+  titleInput.className = 'block-title';
+  titleInput.contentEditable = 'true';
+  titleInput.setAttribute('data-placeholder', 'Title');
+  titleInput.textContent = block.title;
+  titleInput.style.fontWeight = '500';
+  titleInput.style.fontSize = '13.5px';
+  titleInput.oninput = e => { block.title = e.target.textContent; saveState(); };
+
+  titles.appendChild(timeInput);
+  titles.appendChild(titleInput);
+
+  const controls = document.createElement('div');
+  controls.className = 'block-controls';
+
+  // Color picker
+  const cpWrap = document.createElement('div');
+  cpWrap.className = 'color-picker-wrap';
+
+  const cpBtn = document.createElement('div');
+  cpBtn.className = 'color-current';
+  cpBtn.style.background = getColorHex(block.color);
+  cpBtn.title = 'Change colour';
+
+  const palette = document.createElement('div');
+  palette.className = 'color-palette';
+  PASTELS.forEach(p => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch';
+    sw.style.background = p.hex;
+    sw.title = p.name;
+    sw.onclick = (ev) => {
+      ev.stopPropagation();
+      block.color = p.name;
+      saveState();
+      render();
+    };
+    palette.appendChild(sw);
+  });
+
+  cpBtn.onclick = (ev) => {
+    ev.stopPropagation();
+    document.querySelectorAll('.color-palette.open').forEach(p => {
+      if (p !== palette) p.classList.remove('open');
+    });
+    palette.classList.toggle('open');
+  };
+
+  cpWrap.appendChild(cpBtn);
+  cpWrap.appendChild(palette);
+
+  // Drag handle (up/down via touch & mouse)
+  const drag = document.createElement('button');
+  drag.className = 'drag-handle';
+  drag.innerHTML = '⋮⋮';
+  drag.title = 'Drag to reorder';
+  drag.setAttribute('aria-label', 'Drag to reorder');
+  attachDrag(drag, el, idx);
+
+  // Delete
+  const del = document.createElement('button');
+  del.className = 'delete-btn';
+  del.innerHTML = '×';
+  del.title = 'Delete block';
+  del.setAttribute('aria-label', 'Delete block');
+  del.onclick = () => {
+    if (confirm('Delete this time block?')) {
+      state.days[state.currentDay].blocks.splice(idx, 1);
+      saveState();
+      render();
+    }
+  };
+
+  controls.appendChild(cpWrap);
+  controls.appendChild(drag);
+  controls.appendChild(del);
+
+  header.appendChild(titles);
+  header.appendChild(controls);
+  el.appendChild(header);
+
+  // Body — a block can have any combination of activities, options, and sections
+  if (block.activities && block.activities.length > 0) {
+    el.appendChild(renderActivities(block));
+  } else if (!block.options && !block.sections) {
+    // Empty block — still allow adding activities
+    el.appendChild(renderActivities(block));
+  }
+  if (block.options) {
+    el.appendChild(renderOptions(block));
+  }
+  if (block.sections) {
+    el.appendChild(renderSections(block));
+  }
+
+  return el;
+}
+
+function renderActivities(block) {
+  const wrap = document.createElement('div');
+  wrap.className = 'activities';
+
+  block.activities.forEach((act, i) => {
+    wrap.appendChild(renderActivityRow(act, () => {
+      block.activities.splice(i, 1);
+      saveState();
+      render();
+    }, block.activities, i, true));
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-activity';
+  addBtn.textContent = '+ add activity';
+  addBtn.onclick = () => {
+    block.activities.push({ id: uid(), text: '', done: false });
+    saveState();
+    render();
+    // focus newest input
+    setTimeout(() => {
+      const inputs = wrap.querySelectorAll('.activity-text');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+    }, 0);
+  };
+  wrap.appendChild(addBtn);
+
+  return wrap;
+}
+
+function renderActivityRow(act, onRemove, list, idx, draggable) {
+  const row = document.createElement('div');
+  row.className = 'activity-row' + (act.done ? ' done' : '');
+
+  // Drag handle (only when this row belongs to a reorderable list)
+  if (draggable && list) {
+    const drag = document.createElement('button');
+    drag.className = 'activity-drag';
+    drag.innerHTML = '⋮⋮';
+    drag.title = 'Drag to reorder';
+    drag.setAttribute('aria-label', 'Drag to reorder');
+    attachActivityDrag(drag, row, list, idx);
+    row.appendChild(drag);
+  }
+
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = act.done;
+  cb.onchange = () => {
+    act.done = cb.checked;
+    saveState();
+    row.classList.toggle('done', act.done);
+  };
+
+  const txt = document.createElement('div');
+  txt.className = 'activity-text';
+  txt.contentEditable = 'true';
+  txt.setAttribute('data-placeholder', 'New activity');
+  txt.textContent = act.text;
+  txt.oninput = e => { act.text = e.target.textContent; saveState(); };
+  txt.onkeydown = e => {
+    if (e.key === 'Backspace' && txt.textContent === '') {
+      e.preventDefault();
+      onRemove();
+    }
+    if (e.key === 'Enter') {
+      // Prevent newlines inside an activity line
+      e.preventDefault();
+      txt.blur();
+    }
+  };
+
+  const rm = document.createElement('button');
+  rm.className = 'remove-activity';
+  rm.textContent = '×';
+  rm.title = 'Remove';
+  rm.onclick = onRemove;
+
+  row.appendChild(cb);
+  row.appendChild(txt);
+  row.appendChild(rm);
+  return row;
+}
+
+function renderOptions(block) {
+  const wrap = document.createElement('div');
+  const count = block.options.length;
+  wrap.className = 'options-wrap ' + (count === 2 ? 'two' : count === 3 ? 'three' : '');
+
+  // If none selected, treat all as neutral; if one selected, others get strikethrough
+  const anySelected = block.options.some(o => o.selected);
+
+  block.options.forEach((opt, oi) => {
+    const card = document.createElement('div');
+    card.className = 'option-card';
+    if (opt.selected) card.classList.add('selected');
+    else if (anySelected) card.classList.add('deselected');
+
+    // Header
+    const oh = document.createElement('div');
+    oh.className = 'option-header';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = opt.selected;
+    cb.onchange = () => {
+      // Mutually exclusive: only one option selected at a time
+      if (cb.checked) {
+        block.options.forEach((o, i) => o.selected = (i === oi));
+      } else {
+        opt.selected = false;
+      }
+      saveState();
+      render();
+    };
+
+    const otitle = document.createElement('div');
+    otitle.className = 'option-title';
+    otitle.contentEditable = 'true';
+    otitle.setAttribute('data-placeholder', 'Option');
+    otitle.textContent = opt.title;
+    otitle.oninput = e => { opt.title = e.target.textContent; saveState(); };
+    otitle.onkeydown = e => {
+      if (e.key === 'Enter') { e.preventDefault(); otitle.blur(); }
+    };
+
+    oh.appendChild(cb);
+    oh.appendChild(otitle);
+    card.appendChild(oh);
+
+    // Activities within option
+    const acts = document.createElement('div');
+    acts.className = 'option-activities';
+    opt.activities.forEach((a, ai) => {
+      acts.appendChild(renderActivityRow(a, () => {
+        opt.activities.splice(ai, 1);
+        saveState();
+        render();
+      }, opt.activities, ai, true));
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-activity';
+    addBtn.textContent = '+ add activity';
+    addBtn.onclick = () => {
+      opt.activities.push({ id: uid(), text: '', done: false });
+      saveState();
+      render();
+    };
+    acts.appendChild(addBtn);
+    card.appendChild(acts);
+
+    wrap.appendChild(card);
+  });
+
+  return wrap;
+}
+
+// Render meds sub-sections (grey boxes that look like option cards but operate independently)
+function renderSections(block) {
+  const wrap = document.createElement('div');
+  wrap.className = 'sections-wrap';
+
+  block.sections.forEach((section, si) => {
+    const card = document.createElement('div');
+    card.className = 'med-section';
+
+    // Title (editable contenteditable div)
+    const title = document.createElement('div');
+    title.className = 'med-section-title';
+    title.contentEditable = 'true';
+    title.setAttribute('data-placeholder', 'Section title');
+    title.textContent = section.title;
+    title.oninput = e => { section.title = e.target.textContent; saveState(); };
+    title.onkeydown = e => {
+      if (e.key === 'Enter') { e.preventDefault(); title.blur(); }
+    };
+    card.appendChild(title);
+
+    // Items
+    const items = document.createElement('div');
+    items.className = 'med-items';
+    section.items.forEach((it, ii) => {
+      if (it.kind === 'note') {
+        items.appendChild(renderNoteLine(it, () => {
+          section.items.splice(ii, 1);
+          saveState();
+          render();
+        }));
+      } else {
+        items.appendChild(renderActivityRow(it, () => {
+          section.items.splice(ii, 1);
+          saveState();
+          render();
+        }, section.items, ii, true));
+      }
+    });
+
+    // Add controls
+    const addRow = document.createElement('div');
+    addRow.style.display = 'flex';
+    addRow.style.gap = '12px';
+    addRow.style.paddingLeft = '4px';
+
+    const addItem = document.createElement('button');
+    addItem.className = 'add-activity';
+    addItem.style.paddingLeft = '0';
+    addItem.textContent = '+ add item';
+    addItem.onclick = () => {
+      section.items.push({ id: uid(), kind: 'item', text: '', done: false });
+      saveState();
+      render();
+    };
+    addRow.appendChild(addItem);
+
+    const addNote = document.createElement('button');
+    addNote.className = 'add-activity';
+    addNote.style.paddingLeft = '0';
+    addNote.textContent = '+ add note';
+    addNote.onclick = () => {
+      section.items.push({ id: uid(), kind: 'note', text: '' });
+      saveState();
+      render();
+    };
+    addRow.appendChild(addNote);
+
+    items.appendChild(addRow);
+    card.appendChild(items);
+
+    // Delete-section button (small, top-right corner area)
+    const del = document.createElement('button');
+    del.className = 'remove-activity';
+    del.textContent = '×';
+    del.title = 'Remove section';
+    del.style.position = 'absolute';
+    del.style.top = '8px';
+    del.style.right = '8px';
+    del.style.opacity = '0.4';
+    del.onclick = () => {
+      if (confirm('Remove this section?')) {
+        block.sections.splice(si, 1);
+        saveState();
+        render();
+      }
+    };
+    card.style.position = 'relative';
+    card.appendChild(del);
+
+    wrap.appendChild(card);
+  });
+
+  // + add section button
+  const addSec = document.createElement('button');
+  addSec.className = 'add-activity';
+  addSec.textContent = '+ add section';
+  addSec.style.marginTop = '4px';
+  addSec.onclick = () => {
+    block.sections.push({
+      id: uid(),
+      title: 'New section',
+      items: []
+    });
+    saveState();
+    render();
+  };
+  wrap.appendChild(addSec);
+
+  return wrap;
+}
+
+// Render a grey italic note line (no checkbox)
+function renderNoteLine(it, onRemove) {
+  const row = document.createElement('div');
+  row.style.display = 'flex';
+  row.style.alignItems = 'flex-start';
+  row.style.gap = '4px';
+
+  const note = document.createElement('div');
+  note.className = 'note-line';
+  note.contentEditable = 'true';
+  note.setAttribute('data-placeholder', 'Italic note (no checkbox)');
+  note.textContent = it.text;
+  note.oninput = e => { it.text = e.target.textContent; saveState(); };
+  note.onkeydown = e => {
+    if (e.key === 'Backspace' && note.textContent === '') {
+      e.preventDefault();
+      onRemove();
+    }
+    if (e.key === 'Enter') { e.preventDefault(); note.blur(); }
+  };
+
+  const rm = document.createElement('button');
+  rm.className = 'remove-activity';
+  rm.textContent = '×';
+  rm.title = 'Remove note';
+  rm.onclick = onRemove;
+  rm.style.marginTop = '2px';
+
+  row.appendChild(note);
+  row.appendChild(rm);
+  return row;
+}
+
+// ============================================================
+// DRAG & DROP (mouse + touch) — within current day only
+// ============================================================
+function attachDrag(handle, blockEl, idx) {
+  let dragging = false;
+  let startY = 0;
+  let placeholder = null;
+  let blocks = [];
+  let originalIdx = idx;
+  let currentIdx = idx;
+
+  function start(clientY) {
+    dragging = true;
+    startY = clientY;
+    blockEl.classList.add('dragging');
+    const container = document.getElementById('blocksContainer');
+    blocks = Array.from(container.querySelectorAll('.block'));
+    document.body.style.userSelect = 'none';
+  }
+
+  function move(clientY) {
+    if (!dragging) return;
+    const container = document.getElementById('blocksContainer');
+    blocks.forEach(b => {
+      b.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    // find which block we're over
+    let foundIdx = -1;
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b === blockEl) continue;
+      const rect = b.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        const mid = rect.top + rect.height/2;
+        if (clientY < mid) {
+          b.classList.add('drag-over-top');
+          foundIdx = i;
+        } else {
+          b.classList.add('drag-over-bottom');
+          foundIdx = i + 1;
+        }
+        break;
+      }
+    }
+    if (foundIdx !== -1) {
+      // adjust for removal of self
+      if (foundIdx > originalIdx) foundIdx--;
+      currentIdx = foundIdx;
+    }
+  }
+
+  function end() {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.userSelect = '';
+    blockEl.classList.remove('dragging');
+    document.querySelectorAll('.block').forEach(b => {
+      b.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    if (currentIdx !== originalIdx && currentIdx >= 0) {
+      const blocksArr = state.days[state.currentDay].blocks;
+      const [moved] = blocksArr.splice(originalIdx, 1);
+      blocksArr.splice(currentIdx, 0, moved);
+      saveState();
+      render();
+    }
+  }
+
+  // Mouse
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    start(e.clientY);
+    const onMove = ev => move(ev.clientY);
+    const onUp = () => {
+      end();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // Touch
+  handle.addEventListener('touchstart', e => {
+    e.preventDefault();
+    start(e.touches[0].clientY);
+  }, { passive: false });
+  handle.addEventListener('touchmove', e => {
+    e.preventDefault();
+    move(e.touches[0].clientY);
+  }, { passive: false });
+  handle.addEventListener('touchend', e => {
+    e.preventDefault();
+    end();
+  });
+}
+
+// Drag-and-drop for activity rows within a single list (array reference)
+function attachActivityDrag(handle, rowEl, list, idx) {
+  let dragging = false;
+  let siblings = [];
+  let originalIdx = idx;
+  let currentIdx = idx;
+
+  function siblingRows() {
+    // Only activity rows that share the same parent container
+    return Array.from(rowEl.parentElement.querySelectorAll(':scope > .activity-row'));
+  }
+
+  function start() {
+    dragging = true;
+    rowEl.classList.add('act-dragging');
+    siblings = siblingRows();
+    document.body.style.userSelect = 'none';
+  }
+
+  function move(clientY) {
+    if (!dragging) return;
+    siblings.forEach(s => s.classList.remove('act-drag-over-top','act-drag-over-bottom'));
+    let foundIdx = -1;
+    for (let i = 0; i < siblings.length; i++) {
+      const s = siblings[i];
+      if (s === rowEl) continue;
+      const rect = s.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        const mid = rect.top + rect.height/2;
+        if (clientY < mid) {
+          s.classList.add('act-drag-over-top');
+          foundIdx = i;
+        } else {
+          s.classList.add('act-drag-over-bottom');
+          foundIdx = i + 1;
+        }
+        break;
+      }
+    }
+    if (foundIdx !== -1) {
+      if (foundIdx > originalIdx) foundIdx--;
+      currentIdx = foundIdx;
+    }
+  }
+
+  function end() {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.userSelect = '';
+    rowEl.classList.remove('act-dragging');
+    siblings.forEach(s => s.classList.remove('act-drag-over-top','act-drag-over-bottom'));
+    if (currentIdx !== originalIdx && currentIdx >= 0) {
+      const [moved] = list.splice(originalIdx, 1);
+      list.splice(currentIdx, 0, moved);
+      saveState();
+      render();
+    }
+  }
+
+  // Mouse
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    start();
+    const onMove = ev => move(ev.clientY);
+    const onUp = () => {
+      end();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // Touch
+  handle.addEventListener('touchstart', e => {
+    e.preventDefault();
+    start();
+  }, { passive: false });
+  handle.addEventListener('touchmove', e => {
+    e.preventDefault();
+    move(e.touches[0].clientY);
+  }, { passive: false });
+  handle.addEventListener('touchend', e => {
+    e.preventDefault();
+    end();
+  });
+}
+
+// ============================================================
+// TODOS
+// ============================================================
+function renderTodos() {
+  const wrap = document.getElementById('todoList');
+  wrap.innerHTML = '';
+  const day = state.days[state.currentDay];
+
+  if (day.todos.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-todo';
+    empty.textContent = 'No tasks yet — add one below.';
+    wrap.appendChild(empty);
+  } else {
+    day.todos.forEach((t, i) => {
+      const row = document.createElement('div');
+      row.className = 'activity-row' + (t.done ? ' done' : '');
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = t.done;
+      cb.onchange = () => {
+        t.done = cb.checked;
+        saveState();
+        row.classList.toggle('done', t.done);
+      };
+
+      if (t.carried) {
+        const tag = document.createElement('span');
+        tag.className = 'carried-tag';
+        tag.textContent = '↻ carried';
+        row.appendChild(cb);
+        row.appendChild(tag);
+      } else {
+        row.appendChild(cb);
+      }
+
+      const text = document.createElement('input');
+      text.className = 'activity-text';
+      text.value = t.text;
+      text.oninput = e => { t.text = e.target.value; saveState(); };
+      row.appendChild(text);
+
+      // Per-task rollover button
+      const roll = document.createElement('button');
+      roll.className = 'todo-rollover';
+      roll.innerHTML = '↻';
+      roll.title = 'Roll over to tomorrow';
+      roll.setAttribute('aria-label', 'Roll over to tomorrow');
+      roll.onclick = () => {
+        const tomorrow = nextDayKey(state.currentDay);
+        state.days[tomorrow].todos.push({
+          id: uid(),
+          text: t.text,
+          done: false,
+          carried: true
+        });
+        // Remove from today
+        day.todos.splice(i, 1);
+        saveState();
+        render();
+      };
+      row.appendChild(roll);
+
+      const rm = document.createElement('button');
+      rm.className = 'remove-activity';
+      rm.textContent = '×';
+      rm.onclick = () => {
+        day.todos.splice(i, 1);
+        saveState();
+        render();
+      };
+      row.appendChild(rm);
+
+      wrap.appendChild(row);
+    });
+  }
+}
+
+document.getElementById('newTodoInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.value.trim()) {
+    state.days[state.currentDay].todos.push({
+      id: uid(), text: e.target.value.trim(), done: false, carried: false
+    });
+    e.target.value = '';
+    saveState();
+    render();
+  }
+});
+
+// ============================================================
+// ADD BLOCK
+// ============================================================
+document.getElementById('addBlockBtn').onclick = () => {
+  state.days[state.currentDay].blocks.push(mk('Time', 'New block', ['New activity'], 'grey'));
+  saveState();
+  render();
+};
+
+// ============================================================
+// RESET TO TEMPLATE
+// ============================================================
+document.getElementById('resetBtn').onclick = () => {
+  if (confirm(`Reset ${DAY_FULL[state.currentDay]} to the original template? This clears all changes and to-dos for this day.`)) {
+    state.days[state.currentDay] = {
+      blocks: TEMPLATES[state.currentDay](),
+      todos: []
+    };
+    saveState();
+    render();
+  }
+};
+
+// Close color palettes on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.color-palette.open').forEach(p => p.classList.remove('open'));
+});
+
+render();
+</script>
+</body>
+</html>
